@@ -1,0 +1,24 @@
+@startuml
+
+title Example Squence Diagram2
+
+actor User1
+boundary SDK
+control AdServer
+entity Ad
+database BJDB
+
+User1 -> SDK :activite
+SDK -> AdServer : Send request ad.htm
+AdServer -> Ad : Selected Ad
+AdServer -> BJDB : Load data
+BJDB --> AdServer : Return ad data
+AdServer --> SDK : Return ad template
+SDK --> User1 : Return ad template
+deactivate User1
+deactivate SDK
+deactivate AdServer
+deactivate Ad
+deactivate BJDB
+
+@enduml

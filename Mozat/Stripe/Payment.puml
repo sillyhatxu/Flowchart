@@ -1,0 +1,123 @@
+@startuml
+
+skinparam backgroundColor #EEEBDC
+
+actor APP
+control Server
+database DB
+boundary Stripe
+boundary Onemap
+
+title payment flow
+
+== payment start ==
+
+== 添加邮寄地址 ==
+
+/'邮寄地址'/
+APP -> Server:查询用户邮寄地址列表（userId）
+activate Server
+Server -> DB:queryShippingAddressList（userId）
+activate DB
+DB --> Server:返回shippingAddressList
+deactivate DB
+Server --> APP:返回数据(shippingAddressList:null)
+deactivate Server
+APP -> APP:跳转add shipping address
+
+APP -> Server:获取详细地址（postalCode）
+activate Server
+Server -> Onemap:获取详细地址（postalCode）
+activate Onemap
+Onemap --> Server:返回详细地址
+deactivate Onemap
+Server --> APP:返回详细地址
+deactivate Server
+
+APP -> Server:添加邮寄地址
+activate Server
+Server -> DB:addShippingAddress
+activate DB
+DB --> Server:boolean(true:添加成功;false:添加失败)
+deactivate DB
+Server --> APP:boolean(true:添加成功;false:添加失败)
+deactivate Server
+
+== 绑定银行卡 ==
+/'绑定银行卡'/
+APP -> Server:查询已绑定银行卡列表（userId）
+activate Server
+Server -> DB:queryCardList（userId）
+activate DB
+DB --> Server:返回cardList
+deactivate DB
+Server --> APP:返回数据(cardList:null)
+deactivate Server
+APP -> APP:跳转add card
+
+APP -> Stripe:请求tokenId(cardNumber,expMonth,expYear,cvc)
+activate Stripe
+Stripe --> APP:返回tokenId
+deactivate Stripe
+
+APP -> Server:添加银行卡(userId,tokenId)
+activate Server
+
+Server -> DB:checkCustomerId(userId)
+activate DB
+DB --> Server:返回customerId
+deactivate DB
+
+
+Server -> Stripe:请求创建customer(userId)
+note left : 1、customerId为空，\n请求Stripe创建Customer,\n并将customerId反写DB\n2、customerId不为空，\n直接请求card绑定customer
+activate Stripe
+Stripe --> Server:返回Customer数据
+deactivate Stripe
+
+Server -> DB:updateCustomerByUserId(userId)
+activate DB
+DB --> Server:boolean(true:修改成功;false:修改失败)
+deactivate DB
+
+Server -> Stripe:请求card绑定customer(customerId,tokenId)
+activate Stripe
+Stripe --> Server:返回Source信息
+deactivate Stripe
+
+Server -> DB:addCard(sourceId);
+activate DB
+DB --> Server:boolean(true:添加成功;false:添加失败)
+deactivate DB
+
+Server --> APP:boolean(true:添加成功;false:添加失败)
+deactivate Server
+
+APP -> APP:跳转payment
+
+== 支付申请 ==
+APP -> Server:支付申请(userId,invoiceId)
+activate Server
+
+Server -> DB:queryInvoiceDetailByInvoiceId(userId,invoiceId)
+activate DB
+DB --> Server:返回Invoice详细列表
+deactivate DB
+
+Server -> Stripe:请求支付(amount,sourceId,email,customerId)
+activate Stripe
+Stripe --> Server:返回Charge详细信息
+deactivate Stripe
+
+Server --> DB:更新付款信息(invoiceId,chargeId)
+activate DB
+DB --> Server:boolean(true:修改成功;false:修改失败)
+deactivate DB
+
+Server --> APP:boolean(true:支付成功;false:支付失败)
+deactivate Server
+
+== payment end ==
+
+
+@enduml
