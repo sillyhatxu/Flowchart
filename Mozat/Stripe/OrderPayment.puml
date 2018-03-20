@@ -1,0 +1,8 @@
+@startuml
+
+
+(*) --> "Order"
+"Order" -> "Payment"
+
+
+@enduml
